@@ -107,41 +107,52 @@
 
             // Загружаем SQLite и инициализируем БД
             async function initDB() {
-                try {
-                    const SQL = await initSqlJs({
-                        locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-                    });
+    try {
+        const SQL = await initSqlJs({
+            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+        });
 
-                    // Пытаемся загрузить БД из localStorage
-                    const savedDb = localStorage.getItem('sqlite_db');
-                    if (savedDb) {
-                        const data = new Uint8Array(JSON.parse(savedDb));
-                        db = new SQL.Database(data);
-                        console.log("БД загружена из localStorage");
-                    } else {
-                        db = new SQL.Database(); // Новая БД
-                        console.log("Создана новая БД");
-                        
-                        // Создаём таблицу пользователей (если её нет)
-                        db.run(`
-                            CREATE TABLE IF NOT EXISTS Users (
-                                login TEXT PRIMARY KEY,
-                                password TEXT NOT NULL,
-                                is_admin INTEGER DEFAULT 0
-                            )
-                        `);
-                        
-                        // Добавляем тестового пользователя (admin/admin)
-                        db.run("INSERT INTO Users (login, password, is_admin) VALUES (?, ?, ?)", 
-                              ["admin", "admin", 1]);
-                        
-                        saveDB(); // Сохраняем в localStorage
-                    }
-                } catch (error) {
-                    console.error("Ошибка инициализации БД:", error);
-                    showMessage("Ошибка инициализации системы", "error");
-                }
+        // Пытаемся загрузить БД из localStorage
+        const savedDb = localStorage.getItem('sqlite_db');
+        if (savedDb) {
+            const data = new Uint8Array(JSON.parse(savedDb));
+            db = new SQL.Database(data);
+            console.log("БД загружена из localStorage");
+            
+            // Проверяем наличие столбца is_admin
+            try {
+                db.exec("SELECT is_admin FROM Users LIMIT 1");
+            } catch (e) {
+                console.log("Добавляем столбец is_admin...");
+                db.run("ALTER TABLE Users ADD COLUMN is_admin INTEGER DEFAULT 0");
+                // Обновляем admin-пользователя
+                db.run("UPDATE Users SET is_admin = 1 WHERE login = 'admin'");
+                saveDB();
             }
+        } else {
+            db = new SQL.Database(); // Новая БД
+            console.log("Создана новая БД");
+            
+            // Создаём таблицу пользователей с is_admin
+            db.run(`
+                CREATE TABLE IF NOT EXISTS Users (
+                    login TEXT PRIMARY KEY,
+                    password TEXT NOT NULL,
+                    is_admin INTEGER DEFAULT 0
+                )
+            `);
+            
+            // Добавляем тестового пользователя (admin/admin)
+            db.run("INSERT INTO Users (login, password, is_admin) VALUES (?, ?, ?)", 
+                  ["admin", "admin", 1]);
+            
+            saveDB();
+        }
+    } catch (error) {
+        console.error("Ошибка инициализации БД:", error);
+        showMessage("Ошибка инициализации системы", "error");
+    }
+}
 
             // Сохраняем БД в localStorage
             function saveDB() {
