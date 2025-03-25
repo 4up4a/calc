@@ -103,133 +103,71 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
         <script>
             // Инициализация базы данных
-            let db;
+            let db; // Наша база данных
 
-            // Загружаем SQLite и инициализируем БД
-            async function initDB() {
-    try {
-        const SQL = await initSqlJs({
-            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-        });
+// Загружаем SQLite и инициализируем БД
+async function initDB() {
+    const SQL = await initSqlJs({
+        locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+    });
 
-        // Пытаемся загрузить БД из localStorage
-        const savedDb = localStorage.getItem('sqlite_db');
-        if (savedDb) {
-            const data = new Uint8Array(JSON.parse(savedDb));
-            db = new SQL.Database(data);
-            console.log("БД загружена из localStorage");
-            
-            // Проверяем наличие столбца is_admin
-            try {
-                db.exec("SELECT is_admin FROM Users LIMIT 1");
-            } catch (e) {
-                console.log("Добавляем столбец is_admin...");
-                db.run("ALTER TABLE Users ADD COLUMN is_admin INTEGER DEFAULT 0");
-                // Обновляем admin-пользователя
-                db.run("UPDATE Users SET is_admin = 1 WHERE login = 'admin'");
-                saveDB();
-            }
-        } else {
-            db = new SQL.Database(); // Новая БД
-            console.log("Создана новая БД");
-            
-            // Создаём таблицу пользователей с is_admin
-            db.run(`
-                CREATE TABLE IF NOT EXISTS Users (
-                    login TEXT PRIMARY KEY,
-                    password TEXT NOT NULL,
-                    is_admin INTEGER DEFAULT 0
-                )
-            `);
-            
-            // Добавляем тестового пользователя (admin/admin)
-            db.run("INSERT INTO Users (login, password, is_admin) VALUES (?, ?, ?)", 
-                  ["admin", "admin", 1]);
-            
-            saveDB();
-        }
-    } catch (error) {
-        console.error("Ошибка инициализации БД:", error);
-        showMessage("Ошибка инициализации системы", "error");
+    // Пытаемся загрузить БД из localStorage
+    const savedDb = localStorage.getItem('sqlite_db');
+    if (savedDb) {
+        const data = new Uint8Array(JSON.parse(savedDb));
+        db = new SQL.Database(data);
+        console.log("БД загружена из localStorage");
+    } else {
+        db = new SQL.Database(); // Новая БД
+        console.log("Создана новая БД");
+        
+        // Создаём таблицу пользователей (если её нет)
+        db.run(`
+            CREATE TABLE IF NOT EXISTS Users (
+                login TEXT PRIMARY KEY,
+                password TEXT NOT NULL
+            )
+        `);
+        
+        // Добавляем тестового пользователя (admin/admin)
+        db.run("INSERT INTO Users (login, password) VALUES (?, ?)", ["admin", "admin"]);
+        
+        saveDB(); // Сохраняем в localStorage
     }
 }
 
-            // Сохраняем БД в localStorage
-            function saveDB() {
-                try {
-                    const dbData = db.export();
-                    localStorage.setItem('sqlite_db', JSON.stringify(Array.from(dbData)));
-                    console.log("БД сохранена в localStorage");
-                } catch (error) {
-                    console.error("Ошибка сохранения БД:", error);
-                }
-            }
+// Сохраняем БД в localStorage
+function saveDB() {
+    const dbData = db.export();
+    localStorage.setItem('sqlite_db', JSON.stringify(Array.from(dbData)));
+    console.log("БД сохранена в localStorage");
+}
 
-            // Проверка логина и пароля
-            function checkLogin(login, password) {
-                try {
-                    const result = db.exec(
-                        "SELECT is_admin FROM Users WHERE login = ? AND password = ?", 
-                        [login, password]
-                    );
-                    
-                    if (result.length > 0 && result[0].values.length > 0) {
-                        return {
-                            success: true,
-                            isAdmin: result[0].values[0][0] === 1
-                        };
-                    }
-                    return { success: false };
-                } catch (error) {
-                    console.error("Ошибка проверки учетных данных:", error);
-                    return { success: false };
-                }
-            }
+// Проверка логина и пароля
+function checkLogin(login, password) {
+    const result = db.exec("SELECT * FROM Users WHERE login = ? AND password = ?", [login, password]);
+    return result.length > 0 && result[0].values.length > 0;
+}
 
-            // Показ сообщений
-            function showMessage(text, type) {
-                const messageEl = document.getElementById('message');
-                messageEl.textContent = text;
-                messageEl.className = type;
-                messageEl.style.display = 'block';
-            }
+// Инициализация при загрузке страницы
+initDB();
 
-            // Инициализация при загрузке страницы
-            document.addEventListener('DOMContentLoaded', () => {
-                initDB();
-                
-                // Обработчик кнопки "Войти"
-                document.getElementById("loginBtn").addEventListener("click", () => {
-                    const login = document.getElementById("login").value.trim();
-                    const password = document.getElementById("password").value.trim();
-                    
-                    if (!login || !password) {
-                        showMessage("Введите логин и пароль", "error");
-                        return;
-                    }
-                    
-                    const authResult = checkLogin(login, password);
-                    if (authResult.success) {
-                        showMessage("Успешный вход! Перенаправление...", "success");
-                        setTimeout(() => {
-                            if (authResult.isAdmin) {
-                                window.location.href = 'pages/adminpanel.html';
-                            } else {
-                                window.location.href = 'pages/calcpage.html';
-                            }
-                        }, 1000);
-                    } else {
-                        showMessage("Неверный логин или пароль", "error");
-                    }
-                });
-                
-                // Обработка нажатия Enter в полях ввода
-                document.getElementById("password").addEventListener("keypress", (e) => {
-                    if (e.key === "Enter") {
-                        document.getElementById("loginBtn").click();
-                    }
-                });
-            });
+// Обработчик кнопки "Войти"
+document.getElementById("loginBtn").addEventListener("click", () => {
+    const login = document.getElementById("login").value;
+    const password = document.getElementById("password").value;
+    
+    if (checkLogin(login, password)) {
+        alert("Успешный вход!");
+        if (login == 'admin') {
+          window.location.href = 'pages/adminpanel.html'
+        }
+        else {
+        window.location.href = 'pages/calcpage.html';}
+    } else {
+        alert("Неверный логин или пароль!");
+    }
+});
         </script>
     </div>
 </body>
