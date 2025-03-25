@@ -159,14 +159,14 @@ document.getElementById("loginBtn").addEventListener("click", () => {
     if (checkLogin(login, password)) {
         alert("Успешный вход!");
         if (login == 'admin') {
-          window.location.href = 'pages/adminpanel.html'
+          window.location.href = 'pages/adminpanel.html';
         }
         else {
         window.location.href = 'pages/calcpage.html';}
     } else {
         alert("Неверный логин или пароль!");
     }
-};
+}
         </script>
     </div>
 </body>
