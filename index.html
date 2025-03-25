@@ -156,9 +156,6 @@ initDB();
 document.getElementById("loginBtn").addEventListener("click", () => {
     const login = document.getElementById("login").value;
     const password = document.getElementById("password").value;
-    
-    if (checkLogin(login, password)) {
-        alert("Успешный вход!");
     if (checkLogin(login, password)) {
         alert("Успешный вход!");
         if (login == 'admin') {
