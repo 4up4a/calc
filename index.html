@@ -1,174 +1,80 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Authenticator</title>
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            max-width: 100%;
-            margin: 0;
-            padding: 15px;
-            background-color: var(--light-bg);
-            color: var(--text-color);
-            -webkit-text-size-adjust: 100%;
-        }
-        
-        fieldset {
-            gap: 10px;
-            padding: 12px;
-            border: 2px solid #dedede;
-            border-radius: 6px;
-            margin-bottom: 15px;
-        }
-        
-        button {
-            background-color: #3498db;
-            color: #ffffff;
-            border: none;
-            padding: 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-            margin-top: 10px;
-            width: 100%;
-            transition: all 0.2s;
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        button:active {
-            transform: scale(0.98);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-            background-color: #2980b9;
-        }
-        
-        h1, h2 {
-            color: #2c3e50;
-            text-align: center;
-            margin: 15px 0;
-            font-size: 1.5rem;
-        }
-        
-        input {
-            display: flex;
-            gap: 10px;
-            padding: 12px;
-            border: 1px solid #b8b8b8;
-            border-radius: 6px;
-            width: 100%;
-            font-size: 1rem;
-            -webkit-appearance: none;
-        }
-        
-        input[type="number"] {
-            padding: 12px;
-            border: 1px solid #b8b8b8;
-            border-radius: 6px;
-            width: 100%;
-            font-size: 1rem;
-            -webkit-appearance: none;
-        }
-        
-        .error {
-            color: #e74c3c;
-            text-align: center;
-            margin: 10px 0;
-        }
-        
-        .success {
-            color: #2ecc71;
-            text-align: center;
-            margin: 10px 0;
-        }
-    </style>
+    <title>JSONBin Auth</title>
 </head>
 <body>
-    <div>
-        <h1>Войдите в аккаунт</h1>
-        <fieldset>
-            <legend>Логин</legend>
-            <input id="login" type="text">
-        </fieldset>
-        <fieldset>
-            <legend>Пароль</legend>
-            <input id="password" type="password">
-        </fieldset>
-        <div id="message" class="error" style="display: none;"></div>
-        <button id="loginBtn">Войти</button>
-        
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
-        <script>
-            // Инициализация базы данных
-            let db; // Наша база данных
+    <h2>Вход в систему</h2>
+    <input id="loginInput" type="text" placeholder="Логин">
+    <input id="passInput" type="password" placeholder="Пароль">
+    <button onclick="loginUser()">Войти</button>
 
-// Загружаем SQLite и инициализируем БД
-async function initDB() {
-    const SQL = await initSqlJs({
-        locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-    });
+    <script>
+        const BIN_ID = '67e3e5f28a456b79667d084e';
+        const API_KEY = '$2a$10$0rbZvcFhC8Rmuo7YVKD/I.VakCon/XSZCRUwhmaSrROlz6s2QI.dK';
 
-    // Пытаемся загрузить БД из localStorage
-    const savedDb = localStorage.getItem('sqlite_db');
-    if (savedDb) {
-        const data = new Uint8Array(JSON.parse(savedDb));
-        db = new SQL.Database(data);
-        console.log("БД загружена из localStorage");
-    } else {
-        db = new SQL.Database(); // Новая БД
-        console.log("Создана новая БД");
-        
-        // Создаём таблицу пользователей (если её нет)
-        db.run(`
-            CREATE TABLE IF NOT EXISTS Users (
-                login TEXT PRIMARY KEY,
-                password TEXT NOT NULL
-            )
-        `);
-        
-        // Добавляем тестового пользователя (admin/admin)
-        db.run("INSERT INTO Users (login, password) VALUES (?, ?)", ["admin", "admin"]);
-        
-        saveDB(); // Сохраняем в localStorage
-    }
-}
-
-// Сохраняем БД в localStorage
-function saveDB() {
-    const dbData = db.export();
-    localStorage.setItem('sqlite_db', JSON.stringify(Array.from(dbData)));
-    console.log("БД сохранена в localStorage");
-}
-
-// Проверка логина и пароля
-function checkLogin(login, password) {
-    const result = db.exec("SELECT * FROM Users WHERE login = ? AND password = ?", [login, password]);
-    return result.length > 0 && result[0].values.length > 0;
-}
-
-// Инициализация при загрузке страницы
-initDB();
-
-// Обработчик кнопки "Войти"
-document.getElementById("loginBtn").addEventListener("click", () => {
-    const login = document.getElementById("login").value;
-    const password = document.getElementById("password").value;
-    
-    if (checkLogin(login, password)) {
-        alert("Успешный вход!");
-        if (login == 'admin') {
-          window.location.href = 'pages/adminpanel.html'
+        async function fetchBin() {
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                headers: { "X-Master-Key": API_KEY }
+            });
+            return await response.json();
         }
-        else {
-        window.location.href = 'pages/calcpage.html';}
-    } else {
-        alert("Неверный логин или пароль!");
-    }
-});
-        </script>
-    </div>
+
+        async function updateBin(data) {
+            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: "PUT",
+                headers: { "X-Master-Key": API_KEY, "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+        }
+
+        async function login(login, password) {
+            try {
+                const bin = await fetchBin();
+                
+                // Проверяем существует ли record и users
+                if (!bin.record || !bin.record.users) {
+                    alert("Ошибка структуры данных!");
+                    return false;
+                }
+
+                const user = bin.record.users.find(u => u.login === login);
+                
+                if (!user) {
+                    alert("Пользователь не найден!");
+                    return false;
+                }
+
+                if (user.password !== password) {
+                    alert("Неверный пароль!");
+                    return false;
+                }
+                if (user.isAdmin) {
+                    window.location.href = 'pages/adminpanel.html';
+                }else{
+                    window.location.href= 'pages/calcpage.html';
+                }
+                localStorage.setItem("currentUser", JSON.stringify(user));
+                alert("Вход выполнен!");
+                return true;
+            } catch (error) {
+                console.error("Ошибка:", error);
+                alert("Произошла ошибка при входе");
+                return false;
+            }
+        }
+
+        async function loginUser() {
+            const log = document.getElementById('loginInput').value;
+            const password = document.getElementById('passInput').value;
+            
+            if (!log || !password) {
+                alert("Введите логин и пароль!");
+                return;
+            }
+
+            await login(log, password);
+        }
+    </script>
 </body>
 </html>
